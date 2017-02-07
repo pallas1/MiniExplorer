@@ -191,48 +191,45 @@ function process_block($block_hash) {
 }
 
 while ($l_blk <= $block_height) {
-
   $block_hash = $daemon->getblockhash($l_blk);
   $last_hash = get_block_hash($l_blk);
 
   if (empty($block_hash)) {
     $error = "error: could not get block $l_blk";
-	break;
+		break;
   }
 
   if (empty($last_hash) || $last_hash === $null_64bstr) {
+		$block = process_block($block_hash);
 
-	$block = process_block($block_hash);
-
-	if (isset($block['hash'])) {
-      update_astats(false);
-      put_block_hash($l_blk, $block_hash);
-	  $l_txn += count($block['tx']);
-	  $l_blk++;
+		if (isset($block['hash'])) {
+			update_astats(false);
+			put_block_hash($l_blk, $block_hash);
+			$l_txn += count($block['tx']);
+			$l_blk++;
+		} else {
+			$error = $block;
+			$l_blk++;
+			continue;		// break
+		}
+	} elseif ($last_hash === $block_hash) {
+		$l_blk++;
+		continue;
 	} else {
-	  $error = $block;
-	  break;
-	}
+		$block = process_block($last_hash);
 
-  } elseif ($last_hash === $block_hash) {
-	$l_blk++;
-    continue;
-  } else {
-
-    $block = process_block($last_hash);
-
-	if (isset($block['hash'])) {
-      update_astats(true);
-      put_orph_hash($o_blk, $last_hash);
-      put_block_hash($l_blk, $null_64bstr);
-      $o_txn += count($block['tx']);
-      $l_txn -= $o_txn;
-      $o_blk++;
-	  $l_blk--;
-	} else {
-	  $error = $block;
-	  break;
-    }
+		if (isset($block['hash'])) {
+			update_astats(true);
+			put_orph_hash($o_blk, $last_hash);
+			put_block_hash($l_blk, $null_64bstr);
+			$o_txn += count($block['tx']);
+			$l_txn -= $o_txn;
+			$o_blk++;
+			$l_blk--;
+		} else {
+			$error = $block;
+			break;
+		}
   }
 
   $loop_count++;
